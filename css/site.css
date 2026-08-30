@@ -825,7 +825,8 @@ input[type="range"]::-moz-range-thumb {
    page, and it should not be fighting the stylesheet to be read. */
 .stage[data-stage="6"] { --k: 0; }
 .stage[data-stage="7"] { --k: 1; }
-.stage[data-stage="8"] { --k: 0; }
+.stage[data-stage="8"] { --k: 1; }
+.stage[data-stage="9"] { --k: 1; }
 .stage.is-live { --e: calc(var(--d) * var(--k)); }
 
 .stage .prose {
@@ -1044,4 +1045,194 @@ input[type="range"]::-moz-range-thumb {
   .count, .drifty, .drifty + .drifty, .drifty + .drifty + .drifty,
   .answers span, .answers span:nth-child(even) { padding-left: 0; }
   .ragged { max-width: 100%; text-align: left; }
+}
+
+/* ==========================================================================
+   the far end: the design dies, then the lights do
+   ========================================================================== */
+
+/* --- the page losing its own look ---------------------------------------- */
+
+/* Applied to <body> by ramble.js once the reader is deep enough, removed on
+   the way back out. The typography goes first, then the measure, then the
+   paper. It should read as the stylesheet failing rather than as a style. */
+/* Scoped to the final section on purpose. An earlier version applied the
+   measure change to every .prose on the page; toggling it re-flowed content
+   ABOVE the viewport, changed the document height by ~1900px, and made the
+   page lurch under the reader mid-scroll. Anything that alters layout height
+   stays inside the last section, where nothing above it can move. */
+.stage--death .prose,
+.stage--death .qa {
+  max-width: none;
+}
+.stage--death .prose p,
+.stage--death .prose h2 {
+  font-family: var(--mono);
+  font-size: 0.94rem;
+  line-height: 1.5;
+  letter-spacing: 0;
+  word-spacing: 0;
+  text-align: left;
+  hyphens: none;
+  max-width: none;
+  color: var(--ink-2);
+}
+.stage--death .qa h2::before { display: none; }
+.stage--death .drifty { padding-left: 0; }
+
+/* Global, and deliberately height-neutral: colour and opacity only, nothing
+   that can reflow a single line of text. */
+body.dying {
+  background-image: none;
+  transition: background-color 900ms linear;
+}
+body.dying .masthead,
+body.dying .foot {
+  opacity: 0.22;
+  filter: saturate(0);
+  transition: opacity 900ms linear, filter 900ms linear;
+}
+
+/* --- the phrase that will not stop --------------------------------------- */
+
+.loop {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--ink-3);
+  word-break: break-word;
+  margin: 2rem 0;
+  max-width: none;
+}
+.loop span { opacity: var(--o, 1); }
+
+.noise {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  line-height: 1.15;
+  color: var(--ink-3);
+  opacity: 0.5;
+  word-break: break-all;
+  margin: 1.5rem 0 2.5rem;
+  max-width: none;
+}
+
+.lucid-broken {
+  font-family: var(--mono);
+  font-size: 0.94rem;
+  line-height: 1.6;
+  color: var(--ink);
+  max-width: none;
+}
+
+/* --- the black --------------------------------------------------------- */
+
+/* A fixed sheet rather than a full-bleed section: no 100vw, so no horizontal
+   overflow and no scrollbar arithmetic. ramble.js drives the opacity. */
+#blackout {
+  position: fixed;
+  inset: 0;
+  background: #0a0a0a;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 40;
+  transition: opacity 700ms linear;
+}
+
+.act-black { position: relative; height: 220vh; z-index: 50; }
+.act-black .black__stick {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: grid;
+  place-items: center;
+}
+.black__inner {
+  text-align: center;
+  opacity: 0;
+  transition: opacity 900ms var(--ease);
+}
+.black__inner.lit { opacity: 1; }
+
+.black__caret {
+  display: block;
+  width: 0.7rem;
+  height: 2.1rem;
+  margin: 0 auto 2.2rem;
+  background: #e0866a;
+  /* A soft pulse rather than a terminal blink. A hard on/off reads as a
+     command prompt waiting for input, which is jaunty; this reads as
+     breathing, which is what the moment wants. */
+  animation: caretbreath 3.4s ease-in-out infinite;
+}
+@keyframes caretbreath {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.28; }
+}
+
+/* and when the question changes, it stops */
+.black__inner:has(.black__line.turned) .black__caret {
+  animation: none;
+  opacity: 0.18;
+  transition: opacity 1400ms linear;
+}
+.black__line {
+  font-family: var(--serif);
+  font-size: clamp(1.6rem, 1rem + 3vw, 2.6rem);
+  color: #ece6da;
+  margin: 0;
+  letter-spacing: -0.015em;
+  transition: opacity 500ms var(--ease);
+  text-wrap: balance;
+}
+.black__line.turning { opacity: 0; }
+.black__line.turned {
+  font-style: italic;
+  color: #b9b1a4;
+  text-transform: lowercase;
+}
+
+/* --- the letter -------------------------------------------------------- */
+
+.act-letter {
+  position: relative;
+  z-index: 50;
+  padding-block: clamp(6rem, 22vh, 12rem) clamp(8rem, 26vh, 16rem);
+  opacity: 0;
+  transition: opacity 1200ms var(--ease);
+}
+.act-letter.lit { opacity: 1; }
+.letter__inner {
+  max-width: 33rem;
+  margin: 0 auto;
+  color: #ded7ca;
+  font-size: 1.06rem;
+  line-height: 1.72;
+}
+.letter__inner p { margin-bottom: 1.25em; text-wrap: pretty; }
+.letter__inner em { color: #f0eade; }
+.letter__to {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: #8a8172;
+  margin-bottom: 2.6rem !important;
+}
+.letter__break {
+  color: #6f6759;
+  margin: 2.2rem 0 2.2rem !important;
+}
+.letter__sign {
+  margin-top: 2.8rem !important;
+  color: #e0866a;
+  font-style: italic;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .black__caret { animation: none; opacity: 1; }
+  .black__inner, .act-letter { opacity: 1; transition: none; }
+  .act-black { height: auto; padding-block: 6rem; }
+  .act-black .black__stick { position: static; height: auto; }
+  #blackout { transition: none; }
 }
