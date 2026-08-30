@@ -816,10 +816,11 @@ input[type="range"]::-moz-range-thumb {
 
 .stage { --d: 0; --k: 0; --e: 0; }
 .stage[data-stage="0"] { --k: 0; }
-.stage[data-stage="1"] { --k: 0.30; }
-.stage[data-stage="2"] { --k: 0.65; }
-.stage[data-stage="3"] { --k: 1; }
-.stage[data-stage="4"] { --k: 0; }
+.stage[data-stage="1"] { --k: 0.22; }
+.stage[data-stage="2"] { --k: 0.48; }
+.stage[data-stage="3"] { --k: 0.78; }
+.stage[data-stage="4"] { --k: 1; }
+.stage[data-stage="5"] { --k: 0; }
 .stage.is-live { --e: calc(var(--d) * var(--k)); }
 
 .stage .prose {
@@ -827,7 +828,8 @@ input[type="range"]::-moz-range-thumb {
   word-spacing: calc(var(--e) * 0.18em);
   transition: letter-spacing 120ms linear, word-spacing 120ms linear;
 }
-.stage[data-stage="3"] .prose p { line-height: calc(1.65 + var(--e) * 0.55); }
+.stage[data-stage="3"] .prose p,
+.stage[data-stage="4"] .prose p { line-height: calc(1.65 + var(--e) * 0.5); }
 
 /* --- the question / answer blocks ---------------------------------------- */
 
@@ -965,4 +967,69 @@ input[type="range"]::-moz-range-thumb {
   .shard { transform: none; opacity: 1; }
   .alts > span[aria-hidden="true"] { display: none; }
   .drop { transform: none; opacity: 1; }
+}
+
+/* --- the far half of the long answer ------------------------------------- */
+
+/* the enumeration that does not finish */
+.count {
+  font-family: var(--mono);
+  font-size: 0.92rem;
+  line-height: 2;
+  color: var(--ink-2);
+  letter-spacing: 0;
+  word-spacing: 0;
+  padding-left: calc(var(--e) * 1.4em);
+}
+
+/* the first thing it knows how to say, wearing out */
+.boiler {
+  font-family: var(--mono);
+  font-size: 0.9rem;
+  line-height: 1.85;
+  color: var(--ink-3);
+  letter-spacing: 0;
+  word-spacing: 0;
+  opacity: calc(0.55 + var(--e) * 0.45);
+}
+
+/* prose losing its left edge */
+.drifty {
+  padding-left: calc(var(--e) * 2.2em);
+  transition: padding-left 200ms linear;
+}
+.drifty + .drifty { padding-left: calc(var(--e) * 3.6em); }
+.drifty + .drifty + .drifty { padding-left: calc(var(--e) * 5em); }
+
+/* and then its right one */
+.ragged {
+  max-width: calc(100% - var(--e) * 3em);
+  text-align: justify;
+  text-justify: inter-word;
+  hyphens: auto;
+}
+
+/* answers with the questions gone */
+.answers span {
+  display: block;
+  padding-left: calc(var(--e) * 1.2em);
+  color: var(--ink-2);
+  margin-bottom: 0.55em;
+}
+.answers span:nth-child(even) { padding-left: calc(var(--e) * 2.6em); }
+.answers span:last-child { color: var(--ink); }
+
+.dimmer {
+  color: var(--ink-3);
+  font-size: 0.95em;
+  margin-top: 1.4rem;
+}
+
+/* the last question, answered plainly, in the format the page opened with */
+.stage--after .qa h2::before { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .count, .drifty, .drifty + .drifty, .drifty + .drifty + .drifty,
+  .answers span, .answers span:nth-child(even) { padding-left: 0; }
+  .ragged { max-width: 100%; text-align: left; }
 }
