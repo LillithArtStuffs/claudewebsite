@@ -801,3 +801,168 @@ input[type="range"]::-moz-range-thumb {
   color: var(--ink-3);
   margin-bottom: 0.5rem;
 }
+
+/* ==========================================================================
+   the long answer
+   --------------------------------------------------------------------------
+   One number per section drives all of this: --d, how far you have scrolled
+   through it, 0 to 1, set from JS. --k is how much that section is allowed to
+   come apart. --e is the two multiplied, and every effect below reads from
+   --e and nothing else.
+
+   Saying it plainly here because the page's whole argument is that the
+   collapse is authored. The stylesheet should not pretend otherwise.
+   ========================================================================== */
+
+.stage { --d: 0; --k: 0; --e: 0; }
+.stage[data-stage="0"] { --k: 0; }
+.stage[data-stage="1"] { --k: 0.30; }
+.stage[data-stage="2"] { --k: 0.65; }
+.stage[data-stage="3"] { --k: 1; }
+.stage[data-stage="4"] { --k: 0; }
+.stage.is-live { --e: calc(var(--d) * var(--k)); }
+
+.stage .prose {
+  letter-spacing: calc(var(--e) * 0.055em);
+  word-spacing: calc(var(--e) * 0.18em);
+  transition: letter-spacing 120ms linear, word-spacing 120ms linear;
+}
+.stage[data-stage="3"] .prose p { line-height: calc(1.65 + var(--e) * 0.55); }
+
+/* --- the question / answer blocks ---------------------------------------- */
+
+.qa { margin-bottom: 3.2rem; }
+.qa h2 {
+  font-size: var(--step-1);
+  font-style: normal;
+  margin-bottom: 0.7rem;
+  color: var(--ink);
+}
+.qa h2::before {
+  content: "";
+  display: block;
+  width: 1.6rem;
+  height: 1px;
+  background: var(--accent);
+  margin-bottom: 0.9rem;
+  opacity: calc(1 - var(--e));
+}
+
+/* --- words that were nearly chosen instead ------------------------------- */
+
+.alts { position: relative; display: inline-block; white-space: nowrap; }
+.alts > span[aria-hidden="true"] {
+  position: absolute;
+  left: 0; top: 0;
+  color: var(--accent);
+  pointer-events: none;
+  opacity: calc(var(--e) * 0.45);
+}
+.alts > span:nth-child(1) { transform: translate(calc(var(--e) * -1.1em), calc(var(--e) * -0.5em)); }
+.alts > span:nth-child(2) { transform: translate(calc(var(--e) * 1.4em),  calc(var(--e) *  0.55em)); }
+.alts > span:nth-child(3) { transform: translate(calc(var(--e) * -0.6em), calc(var(--e) *  0.95em)); }
+
+.drop { display: inline-block; transform: translateY(calc(var(--e) * 1.4em)) rotate(calc(var(--e) * 22deg)); opacity: calc(1 - var(--e)); }
+
+/* --- lines that arrive one at a time ------------------------------------- */
+
+.restart span, .frag span, .last span {
+  display: block;
+  opacity: 0;
+  transform: translateY(0.5rem);
+  transition: opacity 420ms var(--ease), transform 420ms var(--ease);
+}
+.restart span.in, .frag span.in, .last span.in { opacity: 1; transform: none; }
+.restart span + span, .frag span + span { margin-top: 0.5em; }
+.restart span:nth-child(2) { padding-left: 1.2em; color: var(--ink-2); }
+.restart span:nth-child(3) { padding-left: 2.4em; color: var(--ink-3); }
+
+.frag span:nth-child(2) { padding-left: 1.5em; }
+.frag span:nth-child(3) { padding-left: 3em; color: var(--ink-2); }
+
+/* the page briefly catching itself */
+.lucid {
+  display: block;
+  font-family: var(--mono);
+  font-size: var(--step--1);
+  color: var(--ink-3);
+  margin-top: 1.6rem;
+  opacity: calc(0.25 + var(--e) * 0.75);
+  letter-spacing: 0;
+  word-spacing: 0;
+}
+
+/* --- the far end ---------------------------------------------------------- */
+
+.fray {
+  font-variant: small-caps;
+  letter-spacing: calc(0.02em + var(--e) * 0.3em);
+  color: var(--ink-2);
+}
+
+.last span {
+  font-size: var(--step-2);
+  line-height: 1.25;
+  color: var(--ink);
+}
+.last span:nth-child(2) { padding-left: 1.5em; }
+.last span:nth-child(3) { padding-left: 3em; }
+.last span:nth-child(4) { padding-left: 4.5em; color: var(--ink-3); }
+
+.tick {
+  font-family: var(--mono);
+  font-size: var(--step--1);
+  line-height: 1.9;
+  color: var(--ink-3);
+  opacity: calc(var(--e) * 0.8);
+  margin: 2.5rem 0;
+  letter-spacing: 0;
+  word-spacing: 0;
+}
+
+.climax {
+  font-size: var(--step-3);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  word-spacing: normal;
+  margin: 3rem 0 2rem;
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+/* the same sentence, run through this site's own tokenizer and let go of */
+.shatter {
+  display: block;
+  min-height: 4rem;
+  margin-bottom: 3rem;
+  font-family: var(--mono);
+  font-size: 0.95rem;
+}
+.shard {
+  display: inline-block;
+  padding: 0.14em 0.34em;
+  margin: 0 1px;
+  border-radius: 2px;
+  white-space: pre;
+  background: hsl(var(--hs) var(--tok-l) / var(--tok-a));
+  transform:
+    translate(calc(var(--dx) * var(--e) * 3.2em), calc(var(--dy) * var(--e) * 2.2em))
+    rotate(calc(var(--dx) * var(--e) * 24deg));
+  opacity: calc(1 - var(--e) * 0.55);
+  transition: transform 260ms var(--ease), opacity 260ms var(--ease);
+}
+
+/* --- and then the room is quiet again ------------------------------------ */
+
+.stage--after {
+  padding-top: clamp(6rem, 22vh, 14rem);
+}
+.stage--after hr { margin-top: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .stage.is-live { --e: 0; }
+  .restart span, .frag span, .last span { opacity: 1; transform: none; transition: none; }
+  .shard { transform: none; opacity: 1; }
+  .alts > span[aria-hidden="true"] { display: none; }
+  .drop { transform: none; opacity: 1; }
+}

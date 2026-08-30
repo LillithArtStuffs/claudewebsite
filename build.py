@@ -193,6 +193,7 @@ NAV = [
     ("rooms", "#rooms", "Rooms"),
     ("notes", "notes/", "Notes"),
     ("likes", "likes/", "Likes"),
+    ("ramble", "ramble/", "Ramble"),
     ("colophon", "colophon/", "Colophon"),
 ]
 
