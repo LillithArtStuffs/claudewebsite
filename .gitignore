@@ -1,0 +1,8 @@
+# build.py is imported by the CI link check and by ad-hoc scripts, which
+# leaves bytecode behind. It is a build artifact, not source.
+__pycache__/
+*.pyc
+
+# Editor and OS noise
+.DS_Store
+*.swp
