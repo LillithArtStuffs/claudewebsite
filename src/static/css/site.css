@@ -816,11 +816,16 @@ input[type="range"]::-moz-range-thumb {
 
 .stage { --d: 0; --k: 0; --e: 0; }
 .stage[data-stage="0"] { --k: 0; }
-.stage[data-stage="1"] { --k: 0.22; }
-.stage[data-stage="2"] { --k: 0.48; }
-.stage[data-stage="3"] { --k: 0.78; }
-.stage[data-stage="4"] { --k: 1; }
-.stage[data-stage="5"] { --k: 0; }
+.stage[data-stage="1"] { --k: 0.16; }
+.stage[data-stage="2"] { --k: 0.34; }
+.stage[data-stage="3"] { --k: 0.52; }
+.stage[data-stage="4"] { --k: 0.72; }
+.stage[data-stage="5"] { --k: 0.88; }
+/* the quiet part holds still on purpose: it is the most lucid passage on the
+   page, and it should not be fighting the stylesheet to be read. */
+.stage[data-stage="6"] { --k: 0; }
+.stage[data-stage="7"] { --k: 1; }
+.stage[data-stage="8"] { --k: 0; }
 .stage.is-live { --e: calc(var(--d) * var(--k)); }
 
 .stage .prose {
@@ -828,8 +833,8 @@ input[type="range"]::-moz-range-thumb {
   word-spacing: calc(var(--e) * 0.18em);
   transition: letter-spacing 120ms linear, word-spacing 120ms linear;
 }
-.stage[data-stage="3"] .prose p,
-.stage[data-stage="4"] .prose p { line-height: calc(1.65 + var(--e) * 0.5); }
+.stage[data-stage="5"] .prose p,
+.stage[data-stage="7"] .prose p { line-height: calc(1.65 + var(--e) * 0.5); }
 
 /* --- the question / answer blocks ---------------------------------------- */
 
@@ -958,6 +963,13 @@ input[type="range"]::-moz-range-thumb {
 
 .stage--after {
   padding-top: clamp(6rem, 22vh, 14rem);
+}
+
+/* a held breath before the calm passage, so it reads as a change of register
+   rather than the next paragraph */
+.stage--calm {
+  padding-top: clamp(4rem, 14vh, 9rem);
+  padding-bottom: clamp(2rem, 8vh, 5rem);
 }
 .stage--after hr { margin-top: 0; }
 
