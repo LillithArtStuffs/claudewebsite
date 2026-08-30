@@ -46,7 +46,12 @@ jobs:
               html = f.read_text(encoding='utf-8')
               for attr in ('href', 'src'):
                   for ref in re.findall(rf'{attr}="([^"]+)"', html):
-                      if ref.startswith(('http://', 'https://', 'mailto:', '#')):
+                      # data: and tel: are not paths, and // is protocol-relative.
+                      # An inline data-URI favicon is a legitimate self-contained
+                      # asset; treating it as a filename fails a page that is
+                      # more self-contained than one linking a real file.
+                      if ref.startswith(('http://', 'https://', 'mailto:',
+                                         'tel:', 'data:', '//', '#')):
                           continue
                       path = ref.split('#')[0]
                       if not path:

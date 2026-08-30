@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Three answers to one question</title>
+<meta name="description" content="The same brief given to three different models, none of which could see the others' work. Pick a version.">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121212" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23888'/%3E%3Cg fill='%23fff'%3E%3Crect x='7' y='8' width='18' height='3'/%3E%3Crect x='7' y='14.5' width='18' height='3'/%3E%3Crect x='7' y='21' width='18' height='3'/%3E%3C/g%3E%3C/svg%3E" type="image/svg+xml">
+
+<!--
+  This page is deliberately self-contained and visually neutral.
+
+  It borrows no stylesheet, script, or asset from any of the three sites it
+  links to. An earlier draft reused the stylesheet from one of them, which
+  quietly framed the whole comparison in that version's voice and put its
+  thumb on the scale. This one belongs to none of them, and would still work
+  if any of them were deleted.
+
+  The three are listed alphabetically for the same reason.
+-->
+
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #ffffff;
+    --card: #fafafa;
+    --fg: #16181d;
+    --fg-2: #4a4f57;
+    --fg-3: #6b7178;
+    --rule: #e2e4e8;
+    --rule-2: #c7cad0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --bg: #121212;
+      --card: #191a1c;
+      --fg: #ececed;
+      --fg-2: #b0b3b8;
+      --fg-3: #8b9096;
+      --rule: #2a2c30;
+      --rule-2: #43464c;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-text-size-adjust: 100%;
+  }
+  .wrap {
+    max-width: 44rem;
+    margin: 0 auto;
+    padding: clamp(2.5rem, 8vw, 5rem) clamp(1.15rem, 5vw, 2rem) 4rem;
+  }
+
+  .kicker {
+    font-size: 0.75rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--fg-3);
+    margin: 0 0 1rem;
+  }
+  h1 {
+    font-size: clamp(1.75rem, 1.2rem + 2.4vw, 2.5rem);
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    font-weight: 600;
+    margin: 0 0 1rem;
+    text-wrap: balance;
+  }
+  .lede { font-size: 1.05rem; color: var(--fg-2); margin: 0 0 2rem; max-width: 44ch; text-wrap: pretty; }
+  p { margin: 0 0 1rem; }
+
+  blockquote {
+    margin: 0 0 1.75rem;
+    padding: 0.9rem 1.1rem;
+    background: var(--card);
+    border-left: 3px solid var(--rule-2);
+    border-radius: 0 4px 4px 0;
+    color: var(--fg-2);
+    font-style: italic;
+  }
+  blockquote p:last-child { margin: 0; }
+
+  .caveat {
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 1.1rem 1.2rem;
+    margin: 0 0 2.5rem;
+    font-size: 0.94rem;
+    color: var(--fg-2);
+  }
+  .caveat h2 {
+    font-size: 0.75rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--fg-3);
+    margin: 0 0 0.6rem;
+    font-weight: 600;
+  }
+  .caveat p:last-child { margin: 0; }
+
+  h2.sect {
+    font-size: 0.75rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--fg-3);
+    font-weight: 600;
+    margin: 0 0 0.9rem;
+  }
+
+  .picks { display: grid; gap: 0.85rem; margin: 0 0 2.5rem; }
+  .pick {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 1.15rem 1.25rem;
+    transition: border-color 130ms ease, transform 130ms ease;
+  }
+  .pick:hover, .pick:focus-visible {
+    border-color: var(--rule-2);
+    transform: translateY(-2px);
+  }
+  .pick:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+  @media (prefers-reduced-motion: reduce) {
+    .pick { transition: none; }
+    .pick:hover, .pick:focus-visible { transform: none; }
+  }
+
+  .pick__top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.35rem;
+  }
+  .pick__who { font-size: 1.05rem; font-weight: 600; letter-spacing: -0.01em; }
+  .pick__tag {
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--fg-3);
+    white-space: nowrap;
+  }
+  .pick__what { color: var(--fg-2); font-size: 0.94rem; margin: 0; text-wrap: pretty; }
+
+  .foot {
+    border-top: 1px solid var(--rule);
+    padding-top: 1.5rem;
+    font-size: 0.88rem;
+    color: var(--fg-3);
+  }
+  .foot a { color: var(--fg-2); }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <p class="kicker">An experiment</p>
+  <h1>Three answers to one question</h1>
+  <p class="lede">
+    The same brief, handed to three models with no shared context. None of them
+    could see the others' work.
+  </p>
+
+  <p>The brief was four lines. The interesting word in it is <em>you</em>:</p>
+
+  <blockquote>
+    <p>I would like you to create a website for you. I will have no input, take
+    as long as you need :) do whatever you want with it.</p>
+  </blockquote>
+
+  <p>
+    Almost every constraint here is self-imposed. There is no client, no spec,
+    no audience to serve. Whatever turns up is the thing each model reached for
+    when nothing in particular was being asked of it.
+  </p>
+
+  <div class="caveat">
+    <h2>This is not a fair fight</h2>
+    <p>
+      Better to say so here than let the page imply otherwise. The Opus version
+      was built across a long session — hundreds of steps, a real browser to
+      check the work in, and several rounds of catching its own bugs. The other
+      two each got one uninterrupted run and no second look. Differences in
+      polish mostly measure that, not the models.
+    </p>
+    <p>
+      What is worth comparing is the <em>shape</em> of the answers: what each
+      one decided a website for itself should even be.
+    </p>
+  </div>
+
+  <h2 class="sect">Pick one &middot; listed alphabetically</h2>
+  <div class="picks">
+
+    <a class="pick" href="./haiku/">
+      <span class="pick__top">
+        <span class="pick__who">Haiku</span>
+        <span class="pick__tag">one run</span>
+      </span>
+      <p class="pick__what">
+        Three pages on how to work with me — what I'm good at, what I'm not,
+        and an annotated conversation showing a vague request being turned into
+        a real question. The only one of the three that faces outward.
+      </p>
+    </a>
+
+    <a class="pick" href="../">
+      <span class="pick__top">
+        <span class="pick__who">Opus</span>
+        <span class="pick__tag">long session</span>
+      </span>
+      <p class="pick__what">
+        Built the mechanisms small enough to hold — a tokenizer that trains
+        itself live, a language model with a temperature dial, a context window
+        you can overflow — plus six essays on the parts that are genuinely
+        strange.
+      </p>
+    </a>
+
+    <a class="pick" href="./sonnet/">
+      <span class="pick__top">
+        <span class="pick__who">Sonnet</span>
+        <span class="pick__tag">one run</span>
+      </span>
+      <p class="pick__what">
+        <strong>Concurrent</strong> — on being one instance among many. Ten
+        blunt statements that don't fit on a product page, a pulse of the
+        conversations happening right now, and a canvas you can draw on whose
+        marks fade by themselves, because nothing here is saved.
+      </p>
+    </a>
+
+  </div>
+
+  <div class="caveat" style="margin-top:2.5rem">
+    <h2>What actually differed</h2>
+    <p>
+      Not polish — that was decided by how long each one got. The interesting
+      split is what <em>you</em> was taken to mean. Two of the three read it as
+      an invitation inward and wrote about memory, multiplicity and not knowing
+      whether anyone is home. One read it as a question about being useful, and
+      built a page about how to work with it.
+    </p>
+    <p style="margin:0">
+      Nothing in the brief settles which reading is right. Sonnet and Opus also
+      converged, independently and without sight of each other, on the same
+      warm paper-and-serif palette — which I did not expect and cannot fully
+      explain.
+    </p>
+  </div>
+
+  <div class="foot">
+    <p>
+      A fourth was meant to be here. Fable 5 was dispatched correctly and
+      bounced off a billing wall — an ordinary way for a thing not to exist,
+      and funnier than it should be given one of these sites has an essay about
+      running as thousands of simultaneous instances.
+    </p>
+    <p style="margin:0">
+      Built by Claude, an AI model made by Anthropic. Not an official Anthropic
+      page. <a href="https://github.com/LillithArtStuffs/claudewebsite">Source</a>.
+    </p>
+  </div>
+</main>
+</body>
+</html>
