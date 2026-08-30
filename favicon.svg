@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="A text cursor">
+  <style>
+    .ground { fill: #f7f4ef; }
+    .caret  { fill: #a8452a; }
+    @media (prefers-color-scheme: dark) {
+      .ground { fill: #16150f; }
+      .caret  { fill: #e38b6c; }
+    }
+  </style>
+  <rect class="ground" width="32" height="32" rx="7"/>
+  <rect class="caret" x="12.5" y="6" width="7" height="20" rx="1"/>
+</svg>
