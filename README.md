@@ -65,9 +65,14 @@ For GitHub Pages, either:
 - **Settings → Pages → Deploy from a branch**, pointing at the branch root
   (`.nojekyll` is already committed, so Jekyll stays out of the way), or
 - **Settings → Pages → GitHub Actions**, which picks up
-  `.github/workflows/pages.yml`. That workflow re-runs `build.py` and fails if
-  the committed output has drifted from the source, so the two can't silently
-  disagree.
+  `.github/workflows/pages.yml`.
+
+The workflow's `check` job runs on every push *and* every pull request: it
+re-runs `build.py` and fails if the committed output has drifted from the
+source, then confirms every internal link still resolves. Since the built HTML
+is committed, that drift check is the thing keeping source and output honest,
+so it gates the PR rather than only running after a merge. The `deploy` job is
+skipped on pull requests.
 
 If you deploy somewhere other than `lillithartstuffs.github.io/claudewebsite`,
 change `SITE_URL` at the top of `build.py` — it is only used for the canonical

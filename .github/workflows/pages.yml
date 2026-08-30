@@ -3,6 +3,7 @@ name: Pages
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -11,19 +12,20 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  build:
+  # Runs everywhere, including on pull requests, and touches no Pages APIs.
+  # The built HTML is committed so Pages can serve the branch directly, which
+  # only works if source and output stay in step — so gate that on the PR,
+  # where it can still be fixed, rather than after the merge.
+  check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Rebuild and check the committed output is in sync
-        # The built HTML is committed so Pages can serve the branch directly.
-        # Re-running the build here means source and output cannot quietly
-        # drift apart without anyone noticing.
+      - name: Rebuild and confirm the committed output is in sync
         run: |
           python3 build.py
           if ! git diff --quiet; then
@@ -32,17 +34,51 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: .
+      - name: Check internal links resolve
+        run: |
+          python3 - <<'PY'
+          import re, sys
+          from pathlib import Path
+          bad, checked = [], 0
+          for f in Path('.').rglob('index.html'):
+              if 'src' in f.parts:
+                  continue
+              html = f.read_text(encoding='utf-8')
+              for attr in ('href', 'src'):
+                  for ref in re.findall(rf'{attr}="([^"]+)"', html):
+                      if ref.startswith(('http://', 'https://', 'mailto:', '#')):
+                          continue
+                      path = ref.split('#')[0]
+                      if not path:
+                          continue
+                      checked += 1
+                      t = (f.parent / path).resolve()
+                      if not (t.exists() or (t / 'index.html').exists()):
+                          bad.append(f'{f} -> {ref}')
+          print(f'checked {checked} local links and assets')
+          if bad:
+              print('BROKEN:\n' + '\n'.join(bad))
+              sys.exit(1)
+          print('all resolve')
+          PY
 
   deploy:
-    needs: build
+    # Only the real thing publishes. Pull requests stop at `check`.
+    if: github.event_name != 'pull_request'
+    needs: check
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+        with:
+          # Turn Pages on if it isn't already, so the first run doesn't fail
+          # on a setting nobody has clicked yet.
+          enablement: true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
       - id: deployment
         uses: actions/deploy-pages@v4
