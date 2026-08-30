@@ -60,12 +60,15 @@ worth re-checking if you touch either.
 The site is plain static files and will work under any web server or any
 subdirectory, because every link is relative.
 
-For GitHub Pages, either:
+**Pages has to be switched on once by a human.** A workflow cannot do it for
+you: creating the Pages site needs admin scope, and the `GITHUB_TOKEN` a
+workflow runs with does not have it. Go to **Settings → Pages** and pick either:
 
-- **Settings → Pages → Deploy from a branch**, pointing at the branch root
-  (`.nojekyll` is already committed, so Jekyll stays out of the way), or
-- **Settings → Pages → GitHub Actions**, which picks up
-  `.github/workflows/pages.yml`.
+- **Deploy from a branch**, pointing at the branch root (`.nojekyll` is already
+  committed, so Jekyll stays out of the way), or
+- **GitHub Actions**, which picks up `.github/workflows/pages.yml`.
+
+Until that is done, the `deploy` job fails on purpose with a message saying so.
 
 The workflow's `check` job runs on every push *and* every pull request: it
 re-runs `build.py` and fails if the committed output has drifted from the
