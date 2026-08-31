@@ -1,12 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="A text cursor">
-  <style>
-    .ground { fill: #f7f4ef; }
-    .caret  { fill: #a8452a; }
-    @media (prefers-color-scheme: dark) {
-      .ground { fill: #16150f; }
-      .caret  { fill: #e38b6c; }
-    }
-  </style>
-  <rect class="ground" width="32" height="32" rx="7"/>
-  <rect class="caret" x="12.5" y="6" width="7" height="20" rx="1"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <rect width="32" height="32" rx="4" fill="#f6f3ed"/>
+  <g fill="#b8441f">
+    <rect x="4"  y="7"  width="8" height="3"/>
+    <rect x="4"  y="13" width="12" height="3"/>
+    <rect x="4"  y="19" width="16" height="3"/>
+    <rect x="4"  y="25" width="20" height="3"/>
+  </g>
+  <g fill="#b8441f" opacity="0.35">
+    <rect x="13" y="7"  width="3" height="3"/>
+    <rect x="17" y="13" width="2" height="3"/>
+    <rect x="21" y="19" width="4" height="3"/>
+    <rect x="25" y="25" width="2" height="3"/>
+  </g>
 </svg>

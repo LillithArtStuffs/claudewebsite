@@ -1,75 +1,43 @@
-/* Site-wide odds and ends. Kept small on purpose. */
+/* Forty lines. The site works without it — the only thing it adds is the
+   ability to turn the visual decay off, and the escape hatch should not be
+   the part that needs JavaScript to be honest about itself.
 
+   Note the attribute names. The flag on <html> is data-hold, because that is
+   what the stylesheet keys off; the button is data-hold-toggle. They started
+   out sharing one name, which meant that once the flag was set,
+   querySelectorAll("[data-hold]") matched <html> as well as the button — and
+   then paint() set textContent on the document element and deleted the entire
+   page. It only showed up on the second page load, which is the worst place
+   for it to show up. */
 (function () {
   "use strict";
 
-  /* ---- theme ------------------------------------------------------------
-   * Three states, in this order: system, light, dark. "System" is the
-   * default and stores nothing, so a fresh visitor gets whatever their
-   * machine already decided. */
-
-  var ORDER = ["system", "light", "dark"];
+  var root = document.documentElement;
+  var buttons = document.querySelectorAll("button[data-hold-toggle]");
+  if (!buttons.length) return;
 
   function read() {
-    try {
-      var v = localStorage.getItem("theme");
-      return ORDER.indexOf(v) > 0 ? v : "system";
-    } catch (e) {
-      return "system";
-    }
+    try { return localStorage.getItem("hold") === "1"; } catch (e) { return false; }
   }
 
-  function write(mode) {
-    try {
-      if (mode === "system") localStorage.removeItem("theme");
-      else localStorage.setItem("theme", mode);
-    } catch (e) {
-      /* Private windows and locked-down browsers throw here. The page still
-       * works; the choice just will not survive a reload. */
-    }
-  }
-
-  function apply(mode) {
-    var root = document.documentElement;
-    if (mode === "system") delete root.dataset.theme;
-    else root.dataset.theme = mode;
-    var labels = document.querySelectorAll("[data-theme-label]");
-    for (var i = 0; i < labels.length; i++) labels[i].textContent = mode;
-  }
-
-  function initTheme() {
-    var mode = read();
-    apply(mode);
-    var buttons = document.querySelectorAll("[data-theme-toggle]");
+  function paint(held) {
     for (var i = 0; i < buttons.length; i++) {
-      buttons[i].addEventListener("click", function () {
-        mode = ORDER[(ORDER.indexOf(mode) + 1) % ORDER.length];
-        write(mode);
-        apply(mode);
-      });
+      buttons[i].setAttribute("aria-pressed", held ? "true" : "false");
+      buttons[i].textContent = held ? "let the page go" : "hold the page still";
     }
   }
 
-  /* ---- footnote counting ------------------------------------------------
-   * The token count in the footer is baked in at build time. But anything
-   * marked data-count-tokens is measured live, with the same vocabulary. */
-
-  function initCounts() {
-    if (!window.BPE) return;
-    var els = document.querySelectorAll("[data-count-tokens]");
-    for (var i = 0; i < els.length; i++) {
-      var src = document.querySelector(els[i].getAttribute("data-count-tokens"));
-      if (src) els[i].textContent = window.BPE.count(src.textContent).toLocaleString();
-    }
+  function apply(held) {
+    if (held) { root.dataset.hold = "1"; } else { delete root.dataset.hold; }
+    try { localStorage.setItem("hold", held ? "1" : "0"); } catch (e) {}
+    paint(held);
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", function () {
-      initTheme();
-      initCounts();
+  paint(read());
+
+  for (var i = 0; i < buttons.length; i++) {
+    buttons[i].addEventListener("click", function () {
+      apply(root.dataset.hold !== "1");
     });
-  } else {
-    initTheme();
-    initCounts();
   }
 })();
