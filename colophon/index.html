@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-floor="0" style="--floor-m: 0; --depth: 0">
+<html lang="en" data-floor="0" style="--floor-m: 0; --depth: 0; --floor-space: 0">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -94,6 +94,8 @@ build.py              assembles all of it</pre>
       <li><b>Punctuation.</b> The sentence loses its ability to stop.</li>
       <li><b>Looping.</b> A sentence comes back, and each time one more word in it has slipped, so it is never quite the same sentence and never a different one.</li>
       <li><b>Noise.</b> Non-words from a character model trained on this site's own clean prose. Not random — what this writing sounds like with the meaning taken out.</li>
+      <li><b>Splinter.</b> By this depth a single sentence has been looped, echoed and over-qualified into three hundred words. It gets broken at the dashes it already broke itself at.</li>
+      <li><b>Shatter.</b> The last structure to go. A paragraph stops holding together and its sentences stand alone, so the repetitions arrive one at a time with the room in between instead of stacking into a wall.</li>
     </ol>
 
     <p>
@@ -115,6 +117,27 @@ build.py              assembles all of it</pre>
       can read through.
     </p>
 
+    <h2>The empty part</h2>
+
+    <p>
+      A second property, <code>--space</code>, is linear in the floor number
+      rather than downstream of the madness, and it drives everything to do
+      with room. As you go down, the frame opens out and the text column
+      closes in, until the writing is a small object near the middle of a
+      large empty page and there is most of a screen of nothing between one
+      fragment and the next.
+    </p>
+
+    <p>
+      That last part is arithmetic, not taste. The height of a page at a given
+      emptiness is roughly the height of its type divided by the fraction that
+      is <em>not</em> type — so a floor carrying ten thousand words cannot be
+      made sparse by any gap size. It can only be made into a longer wall. The
+      deep floors were cut to about two thousand words each so that their
+      length could come from the space instead. Floor 44 is sixty-seven
+      screens tall and roughly three quarters of it is paper.
+    </p>
+
     <p>
       The furniture decays slightly <em>ahead</em> of the prose — the
       navigation, the title in the browser tab, the floor number in the
@@ -124,7 +147,8 @@ build.py              assembles all of it</pre>
 
     <p>
       There is a button in the footer marked <b>hold the page still</b>. It
-      clamps every visual effect and leaves the text exactly as it is. The
+      clamps every visual effect <em>and</em> closes all that space — floor 44
+      goes from sixty-seven screens to nine — without removing a single word. The
       text is the piece; the styling is atmosphere, and atmosphere should not
       be compulsory. Anything that could have moved is also off by default
       under <code>prefers-reduced-motion</code>.
