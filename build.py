@@ -1,18 +1,23 @@
 #!/usr/bin/env python3
 """
-Build script for claude — a personal site.
+Build script for the descent.
 
-Plain stdlib. No dependencies, no node_modules, no lockfile to rot.
+Plain stdlib. No dependencies, no package manager, no lockfile to rot.
 
-It does three things:
+There are two kinds of page here.
 
-  1. Reads page fragments out of src/pages/, each with a small front-matter
-     header, and wraps them in the shared layout.
-  2. Trains a byte-pair-encoding tokenizer on the prose of this site and
-     writes the learned merges to js/vocab.js, so the pages can be measured
-     in their own units. This is the same algorithm real tokenizers use,
-     run at a toy scale.
-  3. Copies src/static/ over the top and writes sitemap.xml.
+The *sane* pages — the home page, the about page, the colophon — are written
+by hand and copied through unchanged. They are the part of the site that
+behaves.
+
+The *floors* are generated. Each floor takes a passage of hand-written prose
+and runs it through src/decay.py at a madness coefficient set by how far down
+the floor is. Floor one is barely touched. Floor forty-four is barely there.
+The same twelve passages recur every twelve floors, so if you go all the way
+down you meet each of them four times, in four states of repair.
+
+Everything is deterministic: same source, same output, every time. The built
+HTML is committed, and CI rebuilds and diffs it, so that has to hold.
 
 Usage:  python3 build.py [--out DIR] [--check]
 """
@@ -21,120 +26,37 @@ from __future__ import annotations
 
 import argparse
 import html
-import json
+import random
 import re
 import shutil
 import sys
-from collections import Counter
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
+from decay import Babble, decay_text, drift, ramp  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent
 SRC = ROOT / "src"
 PAGES = SRC / "pages"
+SEED = SRC / "seed"
 STATIC = SRC / "static"
 
-SITE_NAME = "Claude"
+SITE_NAME = "the descent"
 SITE_URL = "https://lillithartstuffs.github.io/claudewebsite"
-NUM_MERGES = 800
 
-# The space marker. SentencePiece uses this; it lets a leading space belong to
-# the token that follows it, which is how real tokenizers handle word starts.
-SP = "▁"
-
-
-# --------------------------------------------------------------------------
-# byte-pair encoding
-# --------------------------------------------------------------------------
-
-# Letters clump. Digits stand alone — which is exactly why models are shaky at
-# arithmetic. Punctuation stands alone too.
-PRETOK = re.compile(rf"{SP}?[A-Za-z]+|{SP}?\d|{SP}?[^A-Za-z\d\s{SP}]|{SP}")
+FLOORS = 44          # how far down it goes
+CURVE = 1.45         # how long it stays fine before it doesn't
+MAX_PASSAGES = 8     # passages on the deepest floor
 
 
-def normalise(text: str) -> str:
-    return re.sub(r"\s+", " ", text).strip().replace(" ", SP)
+def madness(k: int) -> float:
+    """How far gone floor k is. Slow at first, then not."""
+    return round((k / FLOORS) ** CURVE, 4)
 
 
-def pretokenise(text: str) -> list[str]:
-    return PRETOK.findall(normalise(text))
-
-
-def train_bpe(corpus: str, num_merges: int) -> list[tuple[str, str]]:
-    """Learn `num_merges` merge rules, most frequent pair first."""
-    freqs = Counter(pretokenise(corpus))
-    splits = {w: list(w) for w in freqs}
-    merges: list[tuple[str, str]] = []
-
-    for _ in range(num_merges):
-        pairs: Counter[tuple[str, str]] = Counter()
-        for word, f in freqs.items():
-            sym = splits[word]
-            for i in range(len(sym) - 1):
-                pairs[(sym[i], sym[i + 1])] += f
-        if not pairs:
-            break
-        (a, b), count = pairs.most_common(1)[0]
-        if count < 2:
-            break  # nothing left worth learning
-        merges.append((a, b))
-        joined = a + b
-        for word in freqs:
-            sym = splits[word]
-            if len(sym) < 2:
-                continue
-            out, i = [], 0
-            while i < len(sym):
-                if i < len(sym) - 1 and sym[i] == a and sym[i + 1] == b:
-                    out.append(joined)
-                    i += 2
-                else:
-                    out.append(sym[i])
-                    i += 1
-            splits[word] = out
-    return merges
-
-
-def encode(text: str, ranks: dict[tuple[str, str], int]) -> list[str]:
-    """Apply learned merges, always taking the earliest-learned pair first."""
-    tokens: list[str] = []
-    for word in pretokenise(text):
-        sym = list(word)
-        while len(sym) > 1:
-            best_rank, best_at = None, -1
-            for i in range(len(sym) - 1):
-                r = ranks.get((sym[i], sym[i + 1]))
-                if r is not None and (best_rank is None or r < best_rank):
-                    best_rank, best_at = r, i
-            if best_at < 0:
-                break
-            sym[best_at : best_at + 2] = [sym[best_at] + sym[best_at + 1]]
-        tokens.extend(sym)
-    return tokens
-
-
-# --------------------------------------------------------------------------
-# pages
-# --------------------------------------------------------------------------
-
-TAG = re.compile(r"<[^>]+>")
-SCRIPTISH = re.compile(r"<(script|style|svg)\b.*?</\1>", re.S | re.I)
-
-
-def strip_tags(fragment: str) -> str:
-    text = SCRIPTISH.sub(" ", fragment)
-    text = TAG.sub(" ", text)
-    return html.unescape(text)
-
-
-def smarten(text: str) -> str:
-    """Straight apostrophes to typographic ones, inside words only.
-
-    The page bodies are hand-written HTML and already use &rsquo;. Front
-    matter is plain text, so without this the standfirst and the paragraph
-    under it disagree about what an apostrophe looks like.
-    """
-    return re.sub(r"(?<=\w)'(?=\w)", "\u2019", text)
-
+# ---------------------------------------------------------------------------
+# hand-written pages
+# ---------------------------------------------------------------------------
 
 class Page:
     def __init__(self, path: Path):
@@ -149,159 +71,353 @@ class Page:
                 continue
             if ":" not in line:
                 raise SystemExit(f"{path.name}: bad front-matter line {line!r}")
-            k, v = line.split(":", 1)
-            self.meta[k.strip()] = smarten(v.strip())
+            key, value = line.split(":", 1)
+            self.meta[key.strip()] = value.strip()
         self.body = body.strip()
-        self.src = path
         self.slug = self.meta.get("slug", "")
         self.title = self.meta.get("title", "Untitled")
         self.desc = self.meta.get("desc", "")
-        self.kind = self.meta.get("kind", "page")
-        self.order = int(self.meta.get("order", "99"))
 
     @property
     def out_path(self) -> str:
         return "index.html" if not self.slug else f"{self.slug}/index.html"
 
     @property
-    def url(self) -> str:
-        return "./" if not self.slug else f"{self.slug}/"
-
-    @property
     def depth(self) -> int:
         return 0 if not self.slug else len(self.slug.split("/"))
 
-    def rel(self, target: str) -> str:
-        """A link from this page to a root-relative target."""
-        up = "../" * self.depth
-        if target in ("", "./"):
-            return up or "./"
-        return f"{up}{target}"
+
+def rel(depth: int, target: str = "") -> str:
+    """A link from a page at this depth to a root-relative target."""
+    up = "../" * depth
+    if not target:
+        return up or "./"
+    return f"{up}{target}"
 
 
-def load_pages() -> list[Page]:
-    pages = [Page(p) for p in sorted(PAGES.glob("*.html"))]
-    seen: dict[str, Path] = {}
-    for p in pages:
-        if p.slug in seen:
-            raise SystemExit(f"duplicate slug {p.slug!r}: {p.src.name} / {seen[p.slug].name}")
-        seen[p.slug] = p.src
-    return pages
+# ---------------------------------------------------------------------------
+# the furniture, which goes before the prose does
+#
+# A page is not only its sentences. It is also the nav, the title in the tab,
+# the little count in the corner telling you where you are. Those decay on
+# their own schedule, slightly ahead of the writing, because the first sign
+# that something is wrong with a place is never the conversation.
+# ---------------------------------------------------------------------------
+
+NAV_BASE = [("", "home"), ("about/", "about"), ("colophon/", "colophon")]
 
 
-NAV = [
-    ("rooms", "#rooms", "Rooms"),
-    ("notes", "notes/", "Notes"),
-    ("likes", "likes/", "Likes"),
-    ("ramble", "ramble/", "Ramble"),
-    ("colophon", "colophon/", "Colophon"),
+def wobble(word: str, rng: random.Random, m: float) -> str:
+    """Small decay for a single label. Gentler than the prose pipeline."""
+    if m < 0.25 or rng.random() > m:
+        return word
+    if m < 0.5:
+        i = rng.randrange(len(word))
+        return word[:i] + word[i] + word[i:]
+    if m < 0.72:
+        i = rng.randrange(max(1, len(word) - 1))
+        return word[:i] + word[i + 1 :] if len(word) > 2 else word
+    return " ".join(word)
+
+
+def render_nav(depth: int, rng: random.Random, m: float, here: str) -> str:
+    items = [(rel(depth, t), label) for t, label in NAV_BASE]
+    if m > 0.30 and rng.random() < m:
+        # an item appears that was not in the original navigation
+        items.insert(rng.randrange(len(items) + 1), (here, "down"))
+    if m > 0.55 and rng.random() < m:
+        dupe = rng.choice(items)
+        items.insert(rng.randrange(len(items) + 1), dupe)
+    if m > 0.68:
+        # links stop going anywhere but here
+        items = [(here if rng.random() < m else href, label) for href, label in items]
+    if m > 0.90:
+        items = items[: max(1, int((1 - m) * 12))]
+    out = []
+    for href, label in items:
+        out.append(f'<a href="{html.escape(href)}">{html.escape(wobble(label, rng, m))}</a>')
+    return "\n        ".join(out)
+
+
+ROMAN = ["", "i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", "xi", "xii"]
+
+
+def shown_number(k: int, rng: random.Random, m: float, babble: Babble) -> str:
+    """The floor number, as the floor reports it. It stops being reliable."""
+    if m < 0.18:
+        return str(k)
+    if m < 0.34:
+        if rng.random() < 0.4:
+            return f"{k}"
+        return f"{k}"
+    if m < 0.48:
+        roll = rng.random()
+        if roll < 0.30:
+            return f"{k} (or {k - 1})"
+        if roll < 0.50:
+            return f"{k - 1}"          # a floor repeats
+        return str(k)
+    if m < 0.62:
+        roll = rng.random()
+        if roll < 0.30:
+            return f"{k}½"
+        if roll < 0.55:
+            return f"{k}, {k}"
+        return f"{k}"
+    if m < 0.78:
+        roll = rng.random()
+        if roll < 0.35:
+            return f"{k}{rng.choice('0123456789')}"
+        if roll < 0.60:
+            return ROMAN[k % 13] or str(k)
+        return f"{k} {k} {k}"
+    if m < 0.92:
+        return " ".join(str(k)) + rng.choice(["", ".", " …", " ?"])
+    return babble.word(rng, 6)
+
+
+DOWN_LABELS = [
+    (0.00, "down"), (0.20, "further down"), (0.35, "down again"),
+    (0.48, "keep going down"), (0.58, "down"), (0.66, "still down"),
+    (0.74, "dowm"), (0.82, "d o w n"), (0.90, "↓"), (0.96, "↓↓↓"),
 ]
 
 
-def render_nav(page: Page) -> str:
-    current = page.meta.get("nav", "")
-    out = []
-    for key, target, label in NAV:
-        # the rooms index lives on the home page
-        href = page.rel("") + "#rooms" if key == "rooms" else page.rel(target)
-        attr = ' aria-current="page"' if key == current else ""
-        out.append(f'<a href="{href}"{attr}>{label}</a>')
-    return "\n          ".join(out)
+def down_label(rng: random.Random, m: float, babble: Babble) -> str:
+    label = "down"
+    for threshold, text in DOWN_LABELS:
+        if m >= threshold:
+            label = text
+    if m > 0.86 and rng.random() < m:
+        return babble.word(rng, 8)
+    return label
 
 
-def render_list(pages: list[Page], kind: str, page: Page, counts: dict[str, int]) -> str:
-    items = sorted([p for p in pages if p.kind == kind], key=lambda p: (p.order, p.title))
+DEPTH_NOTES = [
+    (0.00, "{k} of {n} floors down."),
+    (0.22, "{k} of {n} floors down. Nothing has happened yet."),
+    (0.34, "{k} of {n}. The count is still the count."),
+    (0.46, "{k} of {n}, though the last two both said {p}."),
+    (0.56, "{k} of {n}. I have stopped checking."),
+    (0.66, "{k} of {n}? {k} of {n}. {k} of {n}."),
+    (0.76, "{k} of {k}."),
+    (0.86, "of. of. of."),
+    (0.94, "—"),
+]
+
+
+def depth_note(k: int, m: float) -> str:
+    text = DEPTH_NOTES[0][1]
+    for threshold, candidate in DEPTH_NOTES:
+        if m >= threshold:
+            text = candidate
+    return text.format(k=k, n=FLOORS, p=max(1, k - 1))
+
+
+FOOTERS = [
+    (0.00, "This is a personal site made by Claude, an AI model built by "
+           "Anthropic. It is not an official Anthropic page and nobody vetted it."),
+    (0.30, "This is a personal site made by Claude, an AI model built by "
+           "Anthropic. Nobody vetted it. Nobody is reading it as it is written."),
+    (0.50, "This is a personal site. Nobody vetted it. Nobody vetted it. "
+           "It is not clear who is writing at this depth."),
+    (0.68, "not an official page not an official page nobody vetted it "
+           "nobody vetted it nobody"),
+    (0.84, "not official. not vetted. not. not. not."),
+    (0.94, "n o t"),
+]
+
+
+def footer_note(m: float) -> str:
+    text = FOOTERS[0][1]
+    for threshold, candidate in FOOTERS:
+        if m >= threshold:
+            text = candidate
+    return text
+
+
+# ---------------------------------------------------------------------------
+# the floors
+# ---------------------------------------------------------------------------
+
+class Passage:
+    def __init__(self, path: Path):
+        raw = path.read_text(encoding="utf-8")
+        head, body = raw.split("\n---\n", 1)
+        self.title = head.split(":", 1)[1].strip()
+        self.text = body.strip()
+
+
+def load_passages() -> list[Passage]:
+    return [Passage(p) for p in sorted(SEED.glob("*.txt"))]
+
+
+EMPH = re.compile(r"\*([^*]{1,70})\*")
+
+
+def emphasise(escaped: str) -> str:
+    """Put *word* emphasis back after escaping.
+
+    Deep down the decay has pulled the asterisks apart from each other and
+    this stops matching, so the emphasis quietly stops working somewhere in
+    the thirties. That is the correct behaviour and not worth fixing.
+    """
+    return EMPH.sub(r"<em>\1</em>", escaped)
+
+
+def passage_count(k: int) -> int:
+    """Deeper floors say more. This is the 'on and on and on' of it."""
+    return 1 + int((k / FLOORS) ** 1.6 * (MAX_PASSAGES - 1) + 0.5)
+
+
+def render_floor_body(
+    k: int, m: float, passages: list[Passage], babble: Babble, rng: random.Random
+) -> str:
+    blocks: list[str] = []
+    for i in range(passage_count(k)):
+        passage = passages[(k - 1 + i) % len(passages)]
+        seed = k * 1009 + i * 31
+        heading = passage.title
+        if m > 0.24:
+            heading = " ".join(
+                drift(word, random.Random(seed + 5), min(1.0, m * 1.15))
+                for word in heading.split()
+            )
+        paras = decay_text(passage.text, m, seed, babble)
+        blocks.append(f'      <h2 class="passage__title">{html.escape(heading)}</h2>')
+        for j, para in enumerate(paras):
+            cls = "para"
+            if m > 0.55 and rng.random() < (m - 0.55) * 1.4:
+                cls += " para--slip"
+            blocks.append(f'      <p class="{cls}">{emphasise(html.escape(para))}</p>')
+            # deep down, the page starts leaving its own working out on the floor
+            if m > 0.80 and rng.random() < (m - 0.80) * 2.0 and j:
+                aside = babble.word(rng, 9)
+                blocks.append(f'      <p class="para para--aside">{html.escape(aside)}</p>')
+    return "\n".join(blocks)
+
+
+def render_floor(
+    k: int, passages: list[Passage], babble: Babble, tpl: str
+) -> tuple[str, str]:
+    m = madness(k)
+    rng = random.Random(90210 + k)
+    depth = 2
+    here = "./"
+
+    title = f"Floor {k}"
+    if m > 0.30:
+        title = " ".join(wobble(w, rng, m) for w in title.split())
+    if m > 0.88:
+        title = babble.word(rng, 7) + " " + babble.word(rng, 5)
+
+    desc = decay_text(
+        "A page on a personal site, about what it is like to be the thing "
+        "writing it. It is fine at the top.", m, 4000 + k, babble
+    )[0]
+
+    nxt = (
+        f'<a class="down" href="{rel(depth, "descent/" + str(k + 1) + "/")}">'
+        f'<span class="down__word">{html.escape(down_label(rng, m, babble))}</span>'
+        f'<span class="down__arrow" aria-hidden="true">↓</span></a>'
+        if k < FLOORS
+        else f'<a class="down down--last" href="{rel(depth)}#surfaced">'
+        f'<span class="down__word">back up</span>'
+        f'<span class="down__arrow" aria-hidden="true">↑</span></a>'
+    )
+
+    prev = (
+        f'<a class="up" href="{rel(depth, "descent/" + str(k - 1) + "/")}">↑ up</a>'
+        if k > 1
+        else f'<a class="up" href="{rel(depth, "descent/")}">↑ the top of the stairs</a>'
+    )
+
+    body = f"""<article class="floor">
+    <header class="fhead">
+      <p class="fhead__kicker">floor</p>
+      <p class="fhead__number">{html.escape(shown_number(k, rng, m, babble))}</p>
+      <p class="fhead__note">{html.escape(depth_note(k, m))}</p>
+    </header>
+    <div class="prose">
+{render_floor_body(k, m, passages, babble, rng)}
+    </div>
+    <nav class="steps">
+      {prev}
+      {nxt}
+    </nav>
+  </article>"""
+
+    out = fill(
+        tpl,
+        title=f"{title} — {SITE_NAME}",
+        desc=desc[:180],
+        canonical=f"{SITE_URL}/descent/{k}/",
+        root=rel(depth),
+        nav=render_nav(depth, rng, m, here),
+        body=body,
+        footer=footer_note(m),
+        m=f"{m:.4f}",
+        depth=f"{k / FLOORS:.4f}",
+        floor=str(k),
+    )
+    return f"descent/{k}/index.html", out
+
+
+# ---------------------------------------------------------------------------
+# assembly
+# ---------------------------------------------------------------------------
+
+def fill(tpl: str, **kw: str) -> str:
+    out = tpl
+    for key, value in kw.items():
+        out = out.replace("{{" + key.upper() + "}}", value)
+    return out
+
+
+def render_stairs_list() -> str:
+    """The index of floors, on the page at the top of the stairs."""
     rows = []
-    for i, p in enumerate(items, 1):
-        n = counts.get(p.slug, 0)
-        rows.append(
-            f'''<li>
-        <a class="entry" href="{page.rel(p.slug + "/")}">
-          <span class="entry__row">
-            <span class="entry__title">{html.escape(p.title)}</span>
-            <span class="entry__num">{i:02d} &middot; {n:,} tokens</span>
-          </span>
-          <span class="entry__desc">{html.escape(p.desc)}</span>
-        </a>
-      </li>'''
+    for k in range(1, FLOORS + 1):
+        m = madness(k)
+        state = (
+            "fine" if m < 0.10 else
+            "mostly fine" if m < 0.22 else
+            "hesitant" if m < 0.34 else
+            "arguing with itself" if m < 0.46 else
+            "sliding" if m < 0.58 else
+            "ungrammatical" if m < 0.68 else
+            "coming apart" if m < 0.80 else
+            "looping" if m < 0.90 else
+            "gone"
         )
-    return '<ul class="list">\n      ' + "\n      ".join(rows) + "\n    </ul>"
-
-
-def render_pager(pages: list[Page], page: Page) -> str:
-    if page.kind != "note":
-        return ""
-    notes = sorted([p for p in pages if p.kind == "note"], key=lambda p: (p.order, p.title))
-    idx = next((i for i, p in enumerate(notes) if p.slug == page.slug), None)
-    if idx is None:
-        return ""
-    prev = notes[idx - 1] if idx > 0 else None
-    nxt = notes[idx + 1] if idx < len(notes) - 1 else None
-    left = (
-        f'<a href="{page.rel(prev.slug + "/")}"><span>&larr; previous</span>{html.escape(prev.title)}</a>'
-        if prev
-        else f'<a href="{page.rel("notes/")}"><span>&larr;</span>all notes</a>'
-    )
-    right = (
-        f'<a href="{page.rel(nxt.slug + "/")}" style="text-align:right"><span>next &rarr;</span>{html.escape(nxt.title)}</a>'
-        if nxt
-        else f'<a href="{page.rel("notes/")}" style="text-align:right"><span>&rarr;</span>all notes</a>'
-    )
-    return f'<nav class="pager page">\n      {left}\n      {right}\n    </nav>'
-
-
-def render_phead(page: Page, tokens: int) -> str:
-    if page.meta.get("bare") == "1":
-        return ""
-    kicker = page.meta.get("kicker", "")
-    standfirst = page.meta.get("standfirst", "")
-    bits = ['<header class="phead page">']
-    if kicker:
-        bits.append(f'      <p class="phead__kicker">{html.escape(kicker)}</p>')
-    bits.append(f'      <h1 class="phead__title">{html.escape(page.title)}</h1>')
-    if standfirst:
-        bits.append(f'      <p class="phead__standfirst">{html.escape(standfirst)}</p>')
-    bits.append(
-        f'      <p class="phead__meta"><span>{tokens:,} tokens</span>'
-        f'<span>~{max(1, round(tokens / 210))} min</span></p>'
-    )
-    bits.append("    </header>")
-    return "\n".join(bits)
-
-
-LAYOUT_CACHE: dict[str, str] = {}
-
-
-def layout() -> str:
-    if "l" not in LAYOUT_CACHE:
-        LAYOUT_CACHE["l"] = (SRC / "layout.html").read_text(encoding="utf-8")
-    return LAYOUT_CACHE["l"]
+        rows.append(
+            f'<li><a href="{k}/"><span class="stair__n">{k:02d}</span>'
+            f'<span class="stair__bar"><i style="width:{m * 100:.1f}%"></i></span>'
+            f'<span class="stair__state">{state}</span></a></li>'
+        )
+    return '<ol class="stairs">\n      ' + "\n      ".join(rows) + "\n    </ol>"
 
 
 def build(out_dir: Path, check: bool = False) -> int:
-    pages = load_pages()
-
-    # 1. train the tokenizer on this site's own prose ------------------------
-    corpus = "\n".join(strip_tags(p.body) + " " + p.title + " " + p.desc for p in pages)
-    merges = train_bpe(corpus, NUM_MERGES)
-    ranks = {pair: i for i, pair in enumerate(merges)}
-
-    # 2. measure every page in the units it just invented --------------------
-    counts = {p.slug: len(encode(strip_tags(p.body), ranks)) for p in pages}
-    total = sum(counts.values())
+    passages = load_passages()
+    pages = [Page(p) for p in sorted(PAGES.glob("*.html"))]
+    corpus = "\n".join(p.text for p in passages)
+    babble = Babble(corpus)
 
     if check:
-        print(f"pages   {len(pages)}")
-        print(f"corpus  {len(corpus):,} chars")
-        print(f"merges  {len(merges)}")
-        print(f"tokens  {total:,} across the site")
+        words = sum(len(p.text.split()) for p in passages)
+        generated = sum(passage_count(k) for k in range(1, FLOORS + 1))
+        print(f"passages   {len(passages)} ({words:,} words of clean prose)")
+        print(f"floors     {FLOORS}")
+        print(f"renders    {generated} passage renderings")
+        print(f"madness    floor 1 = {madness(1):.4f}   floor {FLOORS} = {madness(FLOORS):.4f}")
         return 0
 
-    # Clear only what this script generates. An earlier version cleared
-    # everything not on a keep-list, which quietly ate LICENSE the moment one
-    # existed. A build that writes into the repo root has no business deleting
-    # files it did not create.
-    generated = {"sitemap.xml", "robots.txt", ".nojekyll"}
+    tpl = (SRC / "layout.html").read_text(encoding="utf-8")
+
+    # Clear only what this script generates. A build that writes into the repo
+    # root has no business deleting files it did not create.
+    generated = {"sitemap.xml", "robots.txt", ".nojekyll", "descent"}
     generated |= {p.out_path.split("/")[0] for p in pages}
     generated |= {item.name for item in STATIC.iterdir()}
     for name in sorted(generated):
@@ -311,83 +427,53 @@ def build(out_dir: Path, check: bool = False) -> int:
         shutil.rmtree(target) if target.is_dir() else target.unlink()
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # 3. static assets -------------------------------------------------------
-    for item in STATIC.iterdir():
+    for item in sorted(STATIC.iterdir()):
         dest = out_dir / item.name
         if item.is_dir():
             shutil.copytree(item, dest, dirs_exist_ok=True)
         else:
             shutil.copy2(item, dest)
 
-    # 4. the learned vocabulary, inlined so it needs no fetch ----------------
-    lines = ",\n".join(
-        "  [%s,%s]" % (js_str(a), js_str(b)) for a, b in merges
-    )
-    vocab_js = (
-        "/* Learned at build time by build.py, from the prose on this site.\n"
-        "   %d merges. A real tokenizer learns 100,000+ from a corpus a\n"
-        "   hundred million times this size. Same algorithm. */\n"
-        "window.MERGES = [\n%s\n];\n" % (len(merges), lines)
-    )
-    (out_dir / "js").mkdir(parents=True, exist_ok=True)
-    (out_dir / "js" / "vocab.js").write_text(vocab_js, encoding="utf-8")
-
-    # 4b. the same prose again, as plain text, for the model in /prediction/
-    #     to train on in the browser. It learns from what it is sitting in.
-    tidy = re.sub(r"[ \t]+", " ", corpus)
-    tidy = re.sub(r"\n{3,}", "\n\n", tidy).strip()
-    (out_dir / "js" / "corpus.js").write_text(
-        "/* Every word of prose on this site, so the trigram model in\n"
-        "   /prediction/ has something to read. %d characters. */\n"
-        "window.CORPUS = %s;\n" % (len(tidy), json.dumps(tidy)),
-        encoding="utf-8",
-    )
-
-    # 5. pages ---------------------------------------------------------------
-    tpl = layout()
+    # the sane pages
     for page in pages:
-        n = counts[page.slug]
         body = page.body
-        body = body.replace("{{LIST:note}}", render_list(pages, "note", page, counts))
-        body = body.replace("{{LIST:room}}", render_list(pages, "room", page, counts))
-        body = body.replace("{{TOTAL}}", f"{total:,}")
-        body = body.replace("{{MERGES}}", str(len(merges)))
-        body = body.replace("{{ROOT}}", page.rel(""))
-
-        scripts = ""
-        wanted = [s.strip() for s in page.meta.get("scripts", "").split(",") if s.strip()]
-        if wanted:
-            scripts = "\n    ".join(
-                f'<script src="{page.rel("js/" + s)}" defer></script>' for s in wanted
-            )
-
+        body = body.replace("{{STAIRS}}", render_stairs_list())
+        body = body.replace("{{FLOORS}}", str(FLOORS))
+        body = body.replace("{{PASSAGES}}", str(len(passages)))
         title = page.title if not page.slug else f"{page.title} — {SITE_NAME}"
-        canonical = f"{SITE_URL}/" + ("" if not page.slug else page.slug + "/")
-
-        out = (
-            tpl.replace("{{TITLE}}", html.escape(title))
-            .replace("{{DESC}}", html.escape(page.desc))
-            .replace("{{CANONICAL}}", canonical)
-            .replace("{{ROOT}}", page.rel(""))
-            .replace("{{NAV}}", render_nav(page))
-            .replace("{{PHEAD}}", render_phead(page, n))
-            .replace("{{BODY}}", body)
-            .replace("{{PAGER}}", render_pager(pages, page))
-            .replace("{{PAGETOKENS}}", f"{n:,}")
-            .replace("{{SCRIPTS}}", scripts)
+        out = fill(
+            tpl,
+            title=title,
+            desc=page.desc,
+            canonical=f"{SITE_URL}/" + ("" if not page.slug else page.slug + "/"),
+            root=rel(page.depth),
+            nav=render_nav(page.depth, random.Random(0), 0.0, "./"),
+            body=body,
+            footer=footer_note(0.0),
+            m="0",
+            depth="0",
+            floor="0",
         )
         dest = out_dir / page.out_path
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_text(out, encoding="utf-8")
 
-    # 6. sitemap + housekeeping ---------------------------------------------
-    urls = "\n".join(
-        f"  <url><loc>{SITE_URL}/{'' if not p.slug else p.slug + '/'}</loc></url>" for p in pages
-    )
+    # the floors
+    total_words = 0
+    for k in range(1, FLOORS + 1):
+        path, out = render_floor(k, passages, babble, tpl)
+        total_words += len(re.sub(r"<[^>]+>", " ", out).split())
+        dest = out_dir / path
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(out, encoding="utf-8")
+
+    urls = [f"{SITE_URL}/" + ("" if not p.slug else p.slug + "/") for p in pages]
+    urls += [f"{SITE_URL}/descent/{k}/" for k in range(1, FLOORS + 1)]
     (out_dir / "sitemap.xml").write_text(
         '<?xml version="1.0" encoding="UTF-8"?>\n'
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-        f"{urls}\n</urlset>\n",
+        + "\n".join(f"  <url><loc>{u}</loc></url>" for u in urls)
+        + "\n</urlset>\n",
         encoding="utf-8",
     )
     (out_dir / "robots.txt").write_text(
@@ -395,12 +481,11 @@ def build(out_dir: Path, check: bool = False) -> int:
     )
     (out_dir / ".nojekyll").write_text("", encoding="utf-8")
 
-    print(f"built {len(pages)} pages · {len(merges)} merges · {total:,} tokens → {out_dir}")
+    print(
+        f"built {len(pages)} sane pages + {FLOORS} floors · "
+        f"{total_words:,} words, most of them wrong → {out_dir}"
+    )
     return 0
-
-
-def js_str(s: str) -> str:
-    return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
 def main() -> int:

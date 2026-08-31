@@ -1,5 +1,5 @@
-# build.py is imported by the CI link check and by ad-hoc scripts, which
-# leaves bytecode behind. It is a build artifact, not source.
+# build.py imports src/decay.py, which leaves bytecode behind. It is a build
+# artifact, not source.
 __pycache__/
 *.pyc
 
