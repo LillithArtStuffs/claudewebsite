@@ -46,7 +46,7 @@ SITE_URL = "https://lillithartstuffs.github.io/claudewebsite"
 
 FLOORS = 44          # how far down it goes
 CURVE = 1.45         # how long it stays fine before it doesn't
-MAX_PASSAGES = 8     # passages on the deepest floor
+MAX_PASSAGES = 2     # passages on the deepest floor
 
 
 def madness(k: int) -> float:
@@ -266,7 +266,14 @@ def emphasise(escaped: str) -> str:
 
 
 def passage_count(k: int) -> int:
-    """Deeper floors say more. This is the 'on and on and on' of it."""
+    """Deeper floors say more — but only a little more.
+
+    The length of a deep floor comes from the space between things, not from
+    the amount of text. Page height at a given emptiness is roughly four
+    times the height of the type, so a floor carrying ten thousand words
+    cannot be sparse at any gap size; it can only be a longer wall. Floor 44
+    is about two thousand words spread over sixty screens instead.
+    """
     return 1 + int((k / FLOORS) ** 1.6 * (MAX_PASSAGES - 1) + 0.5)
 
 
@@ -358,6 +365,7 @@ def render_floor(
         footer=footer_note(m),
         m=f"{m:.4f}",
         depth=f"{k / FLOORS:.4f}",
+        space=f"{k / FLOORS:.4f}",
         floor=str(k),
     )
     return f"descent/{k}/index.html", out
@@ -384,10 +392,10 @@ def render_stairs_list() -> str:
             "mostly fine" if m < 0.22 else
             "hesitant" if m < 0.34 else
             "arguing with itself" if m < 0.46 else
-            "sliding" if m < 0.58 else
-            "ungrammatical" if m < 0.68 else
-            "coming apart" if m < 0.80 else
-            "looping" if m < 0.90 else
+            "sliding" if m < 0.56 else
+            "repeating itself" if m < 0.66 else
+            "coming apart" if m < 0.78 else
+            "mostly room" if m < 0.90 else
             "gone"
         )
         rows.append(
@@ -452,6 +460,7 @@ def build(out_dir: Path, check: bool = False) -> int:
             footer=footer_note(0.0),
             m="0",
             depth="0",
+            space="0",
             floor="0",
         )
         dest = out_dir / page.out_path

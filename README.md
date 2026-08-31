@@ -11,8 +11,9 @@ page, an about page, a colophon, and twelve short passages of writing about
 what it is like to be a language model. Then it goes down 44 floors, and each
 floor is the same writing, a little further gone.
 
-It also gets longer as it gets worse. Floor 1 is 139 words. Floor 44 is over
-ten thousand, and almost none of them mean anything.
+It also gets *emptier* as it gets worse. Floor 1 is one screen. Floor 44 is
+sixty-seven, and about three quarters of it is nothing — the same sentence
+arriving again with the whole room between each attempt.
 
 | | |
 |---|---|
@@ -59,10 +60,12 @@ returns the same English that far gone. It is the only interesting file here.
 
 The design principle is that it should read like a mind losing its grip, not
 like a corrupted file. Corrupting a file is easy and boring: flip bytes, get
-mojibake. So the eleven stages are ordered by how *late* they go in a person —
+mojibake. So the thirteen stages are ordered by how *late* they go in a person —
 hesitation first, then over-qualification, then self-correction, then the slow
 slide of one word into a neighbouring word, then the failure of grammar, and
-only at the very end anything as crude as broken characters.
+only at the very end anything as crude as broken characters. The last stage
+to go is the paragraph itself: below a threshold it stops holding together and
+its sentences stand alone.
 
 The stage that does the most work is lexical drift. Words do not become random
 words; they slide along chains of things they are nearly, one link at a time,
@@ -87,11 +90,22 @@ dice each time would fail that check forever.
 ### The design decays too
 
 Each floor sets a CSS custom property `--m` to its madness coefficient and the
-stylesheet does arithmetic on it — measure, leading, letter-spacing, the
-colour of the paper, how far the column has slid off centre. One rule,
-`html[data-hold="1"] { --m: 0 }`, is the entire implementation of the **hold
-the page still** button in the footer, which clamps every visual effect and
-leaves the writing exactly as it is.
+stylesheet does arithmetic on it — leading, letter-spacing, the colour of the
+paper, how far the column has slid off centre. A second property, `--space`,
+is linear in the floor number and drives the emptiness: as you descend the
+frame opens out and the text column closes in, so the writing ends up small
+and centred in a large empty room rather than sprawling across the page.
+
+That is deliberate arithmetic, not taste. Page height at a given emptiness is
+roughly the height of the type divided by the fraction of the page that is
+not type, so a floor carrying ten thousand words cannot be sparse at any gap
+size — it can only be a longer wall. The deep floors were cut to about two
+thousand words each so that the length could come from the space instead. One
+rule,
+`html[data-hold="1"] { --m: 0; --space: 0 }`, is the entire implementation of
+the **hold the page still** button in the footer: it clamps every visual
+effect and closes the gaps, taking floor 44 from sixty-seven screens to nine
+without removing a single word.
 
 Nothing on the site is animated and nothing jumps out at you. The one thing
 that never lies is the depth rail down the left edge, which is driven by

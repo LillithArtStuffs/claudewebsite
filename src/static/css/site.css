@@ -14,6 +14,11 @@
 :root {
   --floor-m: 0;
   --m: var(--floor-m);
+  /* How empty the rooms are. Linear in floor number rather than downstream of
+     --m, so the space opens up steadily the whole way down instead of only at
+     the end where the madness curve goes vertical. */
+  --floor-space: 0;
+  --space: var(--floor-space);
   /* effects that should only arrive near the bottom hang off these */
   --late: max(0, calc(var(--m) - 0.55));
   --last: max(0, calc(var(--m) - 0.80));
@@ -42,7 +47,7 @@
 }
 
 /* the escape hatch. clamps every effect, leaves the writing untouched. */
-html[data-hold="1"] { --m: 0; }
+html[data-hold="1"] { --m: 0; --space: 0; }
 
 /* --------------------------------------------------------------------------
    the rail
@@ -95,6 +100,12 @@ a:hover { color: var(--accent); }
 .skip:focus { left: 0; }
 
 .wrap { width: min(100% - 2.5rem, 46rem); margin-inline: auto; }
+
+/* On a floor the frame opens out as the subject closes in: the page gets
+   wider the further down you are while the text column narrows, so the
+   writing ends up small and centred in a large empty room rather than
+   left-aligned with dead space beside it. */
+main.wrap { width: min(100% - 2.5rem, calc(46rem + var(--space) * 15rem)); }
 
 /* --------------------------------------------------------------------------
    masthead
@@ -227,12 +238,12 @@ code { font-family: var(--mono); font-size: 0.88em; }
 /* the whole floor slides off the centre of the window as you go down */
 .floor {
   padding-bottom: 2rem;
-  margin-left: calc(var(--m) * -2.5rem);
-  margin-right: calc(var(--m) * 2.5rem);
+  margin-left: calc(var(--m) * -1.2rem);
+  margin-right: calc(var(--m) * 1.2rem);
 }
 
 .fhead {
-  margin-bottom: 3rem; padding-bottom: 1.4rem;
+  margin-bottom: calc(3rem + var(--space) * 22vh); padding-bottom: 1.4rem;
   border-bottom: 1px solid var(--rule);
 }
 .fhead__kicker {
@@ -251,12 +262,14 @@ code { font-family: var(--mono); font-size: 0.88em; }
 .fhead__note { font-family: var(--mono); font-size: 0.78rem; color: var(--dim); margin: 0; }
 
 .prose {
-  /* the measure gets too wide to read comfortably. a real typographic
-     failure, chosen because it is felt before it is noticed. */
-  max-width: calc(36rem + var(--m) * 18rem);
+  /* The column closes in rather than sprawling. A wide measure reads as a
+     page badly set; a narrow one stranded in a large empty page reads as a
+     room with one thing in it, which is the thing we are after. */
+  max-width: calc(38rem - var(--m) * 13rem);
+  margin-inline: auto;
   letter-spacing: calc(var(--m) * 0.045em);
-  word-spacing: calc(var(--m) * 0.3em);
-  line-height: calc(1.68 + var(--m) * 0.85);
+  word-spacing: calc(var(--m) * 0.22em);
+  line-height: calc(1.68 + var(--m) * 0.42);
 }
 
 /* No rotation on .prose itself, however tempting. A rotated block displaces
@@ -269,12 +282,18 @@ code { font-family: var(--mono); font-size: 0.88em; }
   font-family: var(--mono);
   font-size: calc(0.85rem + var(--m) * 0.3rem);
   font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase;
-  color: var(--dim); margin: 3rem 0 1rem;
+  color: var(--dim);
+  margin: calc(3rem + var(--space) * 34vh) 0 calc(1rem + var(--space) * 9vh);
 }
 .passage__title:first-child { margin-top: 0; }
 
 .para {
-  margin: 0 0 calc(1.25rem + var(--m) * 1.4rem);
+  /* The gap is the subject. By the bottom of the stairs there is most of a
+     screen of nothing between one fragment and the next, so the looped
+     repetitions arrive one at a time with the room in between, instead of
+     stacking into a wall. vh rather than rem because emptiness is measured
+     against the window, not against the type. */
+  margin: 0 0 calc(1.25rem + var(--space) * 52vh);
   /* the doubling only appears once --late is above zero; at zero offset a
      shadow sits exactly under opaque text and cannot be seen. */
   text-shadow:
@@ -292,7 +311,7 @@ code { font-family: var(--mono); font-size: 0.88em; }
 /* No opacity fades on body text. Fading a paragraph out is the cheapest
    effect here and the only one that buys atmosphere with legibility: stacked
    on the darkening paper it took the deepest floors under 3:1. The prose is
-   already coming apart in eleven other ways. */
+   already coming apart in twelve other ways. */
 .para:nth-child(17n) { margin-left: calc(var(--last) * -6rem); }
 
 .para--slip {
@@ -303,6 +322,7 @@ code { font-family: var(--mono); font-size: 0.88em; }
   font-family: var(--mono);
   font-size: 0.8rem; color: var(--dim);
   margin-left: calc(var(--m) * 6rem);
+  margin-bottom: calc(1.25rem + var(--space) * 44vh);
 }
 
 /* the stairs at the foot of each floor ------------------------------------- */
@@ -310,7 +330,7 @@ code { font-family: var(--mono); font-size: 0.88em; }
 .steps {
   display: flex; justify-content: space-between; align-items: center;
   gap: 1.5rem; flex-wrap: wrap;
-  margin-top: 4rem; padding-top: 1.6rem; border-top: 1px solid var(--rule);
+  margin-top: calc(4rem + var(--space) * 30vh); padding-top: 1.6rem; border-top: 1px solid var(--rule);
   font-family: var(--mono); font-size: 0.85rem;
 }
 .up { color: var(--dim); text-decoration: none; }

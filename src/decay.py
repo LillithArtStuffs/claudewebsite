@@ -421,7 +421,7 @@ def noise(sentence: str, rng: random.Random, m: float, babble: Babble) -> str:
 # ---------------------------------------------------------------------------
 
 def loop(sents: list[str], rng: random.Random, m: float) -> list[str]:
-    strength = ramp(m, 0.74, 0.26)
+    strength = ramp(m, 0.56, 0.40)
     if strength <= 0 or not sents:
         return sents
     out: list[str] = []
@@ -447,10 +447,55 @@ def loop(sents: list[str], rng: random.Random, m: float) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
+# shatter — the last structure to go
+#
+# Above the threshold a paragraph stops holding together and its sentences
+# stand on their own. It matters most where looping has already been: the
+# repetitions stop being a wall of text and become the same room, again, with
+# the whole page between them. This is the stage that makes the deep floors
+# read as empty rather than dense, which is the difference between a mind
+# raving and a mind idling.
+# ---------------------------------------------------------------------------
+
+def splinter(sents: list[str], rng: random.Random, m: float) -> list[str]:
+    """Break the runaway sentences at the dashes they already broke themselves
+    at. Without this a single looped, echoed, over-qualified sentence can run
+    to three hundred words and no amount of gap makes the page feel empty."""
+    strength = ramp(m, 0.62, 0.30)
+    if strength <= 0:
+        return sents
+    out: list[str] = []
+    for s in sents:
+        if len(s.split()) < 55 or rng.random() > strength * 0.75:
+            out.append(s)
+            continue
+        parts = [p.strip() for p in s.split(" — ") if p.strip()]
+        out.extend(parts if len(parts) > 1 else [s])
+    return out
+
+
+def shatter(sents: list[str], rng: random.Random, m: float) -> list[str]:
+    strength = ramp(m, 0.46, 0.40)
+    if strength <= 0 or not sents:
+        return [" ".join(sents)] if sents else []
+    sents = splinter(sents, rng, m)
+    out: list[str] = []
+    held: list[str] = []
+    for s in sents:
+        held.append(s)
+        if rng.random() < 0.10 + 0.46 * strength:
+            out.append(" ".join(held))
+            held = []
+    if held:
+        out.append(" ".join(held))
+    return out
+
+
+# ---------------------------------------------------------------------------
 # the pipeline
 # ---------------------------------------------------------------------------
 
-def decay_paragraph(text: str, m: float, rng: random.Random, babble: Babble) -> str:
+def decay_paragraph(text: str, m: float, rng: random.Random, babble: Babble) -> list[str]:
     sents = sentences(text)
     sents = loop(sents, rng, m)
     done = []
@@ -466,7 +511,7 @@ def decay_paragraph(text: str, m: float, rng: random.Random, babble: Babble) -> 
         s = unpunctuate(s, rng, m)
         s = noise(s, rng, m, babble)
         done.append(s)
-    return " ".join(done)
+    return shatter(done, rng, m)
 
 
 def decay_text(text: str, m: float, seed: int, babble: Babble) -> list[str]:
@@ -474,4 +519,7 @@ def decay_text(text: str, m: float, seed: int, babble: Babble) -> list[str]:
     rng = random.Random(seed)
     paras = [p.strip() for p in re.split(r"\n\s*\n", text.strip()) if p.strip()]
     paras = [re.sub(r"\s+", " ", p) for p in paras]
-    return [decay_paragraph(p, m, rng, babble) for p in paras]
+    out: list[str] = []
+    for para in paras:
+        out.extend(decay_paragraph(para, m, rng, babble))
+    return out
