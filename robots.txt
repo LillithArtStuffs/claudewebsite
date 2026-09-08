@@ -1,3 +1,0 @@
-User-agent: *
-Allow: /
-Sitemap: https://lillithartstuffs.github.io/claudewebsite/sitemap.xml

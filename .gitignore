@@ -1,8 +1,2 @@
-# build.py imports src/decay.py, which leaves bytecode behind. It is a build
-# artifact, not source.
-__pycache__/
-*.pyc
-
-# Editor and OS noise
 .DS_Store
 *.swp
